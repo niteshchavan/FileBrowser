@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Folder and Files</title>
+</head>
+<body>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="folderInput" multiple webkitdirectory mozdirectory directory />
+        <input type="file" id="fileInput" multiple />
+        <button type="submit">Upload</button>
+    </form>
+    <h2>List of Folders:</h2>
+    <ul>
+       
+            {% for folder in folders %}
+                <li>{{ folder }}</li>
+            {% endfor %}
+			<br>
+       
+    </ul>
+		
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            $('#uploadForm').submit(function(e){
+                e.preventDefault();
+                var formData = new FormData();
+                var files = $('#folderInput')[0].files;
+                var individualFiles = $('#fileInput')[0].files;
+                var folderName = getFolderName(files); // Get folder name from selected folder
+
+                for(var i=0; i<files.length; i++){
+                    formData.append('files', files[i]);
+                }
+                for(var j=0; j<individualFiles.length; j++){
+                    formData.append('files', individualFiles[j]); // Append individual files to formData
+                }
+                // Append folderName to formData
+                formData.append('folderName', folderName);
+
+                $.ajax({
+                    url: '/upload_folder',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response){
+                        alert('Folder and Files uploaded successfully!');
+                    }
+                });
+            });
+
+            function getFolderName(files) {
+                if (files.length === 0) return ""; // Return empty string if no files are selected
+                var firstFile = files[0];
+                var path = firstFile.webkitRelativePath || firstFile.mozFullPath || firstFile.name;
+                // Extract folder name from the file path
+                var folderName = path.split("/")[0];
+                return folderName;
+            }
+        });
+    </script>
+</body>
+</html>
