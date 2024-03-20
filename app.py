@@ -1,47 +1,23 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, abort, jsonify
 import os
 from datetime import datetime
 
-
 app = Flask(__name__)
 
-UPLOAD_FOLDER = 'uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+ALLOWED_DIRECTORY = 'Data'
 
 @app.route('/')
 def index():
-    folders = get_folders_list()
-    organized_folders = organize_folders_by_date(folders)
-    return render_template('index.html',  folders=organized_folders)
+    # Get the directory path from the query parameter
+    directory = request.args.get('dir', '')
 
-def get_folders_list():
-    folders = []
-    uploads_path = os.path.join(app.config['UPLOAD_FOLDER'])
-    
-    for root, dirs, files in os.walk(uploads_path):
-        for dir in dirs:
-            folder_path = os.path.join(root, dir)
-            print(folder_path)
-            folders.append(folder_path)
-            
-    return folders
+    # Get the list of files and directories in the specified directory
+    full_directory_path = os.path.join(ALLOWED_DIRECTORY, directory)
+    contents = os.listdir(full_directory_path)
 
+    # Render the template with the list of contents and current directory
+    return render_template('index.html', contents=contents, current_directory=directory)
 
-def organize_folders_by_date(folders):
-    organized_folders = {}
-    for folder in folders:
-        date_folder = folder.split('/')[0]  # Extract date from folder name
-        if date_folder not in organized_folders:
-            organized_folders[date_folder] = []
-        organized_folders[date_folder].append(folder)
-    return organized_folders
-
-def get_date_folder():
-    current_date = datetime.now()
-    date_folder = current_date.strftime("%Y-%m-%d")
-    return date_folder
-    
-    
 @app.route('/upload_folder', methods=['POST'])
 def upload_folder():
     folder_name = request.form['folderName']
@@ -53,7 +29,7 @@ def upload_folder():
         print(file.filename)
     
     date_folder = get_date_folder()
-    folder_path = os.path.join(app.config['UPLOAD_FOLDER'], date_folder, folder_name)
+    folder_path = os.path.join(ALLOWED_DIRECTORY, date_folder, folder_name)
     print(folder_path)
     os.makedirs(folder_path, exist_ok=True)  # Create folder if it doesn't exist
     
@@ -69,8 +45,60 @@ def upload_folder():
         file.save(file_path)
     
     return "Folder uploaded successfully!"
-    return "Folder uploaded successfully!"
+
+def get_date_folder():
+    current_date = datetime.now()
+    date_folder = current_date.strftime("%Y-%m-%d")
+    return date_folder
 
 
+@app.route('/navigate')
+def navigate_directory():
+    # Get the current directory from the query parameter
+    current_directory = request.args.get('dir', '')
+
+    # Get the target directory from the clicked link
+    target_directory = request.args.get('target')
+
+    # Construct the new directory path
+    if target_directory == '..':
+        # If the target directory is '..', go up one level
+        new_directory = os.path.dirname(current_directory)
+    else:
+        # Otherwise, navigate to the selected directory
+        new_directory = os.path.join(current_directory, target_directory)
+
+    # Redirect to the root URL with the new directory as a query parameter
+    return redirect(url_for('index', dir=new_directory))
+    
+@app.before_request
+def check_directory_access():
+    # Get the requested directory from the query parameter
+    requested_directory = request.args.get('dir', '')
+
+    # Construct the full path of the requested directory
+    full_requested_path = os.path.join(ALLOWED_DIRECTORY, requested_directory)
+
+    # Check if the requested directory is within the allowed directory
+    if not os.path.abspath(full_requested_path).startswith(os.path.abspath(ALLOWED_DIRECTORY)):
+        # If not, abort the request with a 403 Forbidden status code
+        abort(403)
+
+
+@app.route('/upload_selected_folders', methods=['POST'])
+def upload_selected_folders():
+    data = request.json  # Get the JSON data sent from the client
+    selected_folders = data.get('folders', [])  # Get the list of selected folders
+    selected_files = data.get('files', [])  # Get the list of selected files
+
+    # Process the selected folders and files as needed
+    print("Selected folders:", selected_folders)
+    print("Selected files:", selected_files)
+
+    # Return a JSON response indicating success
+    return jsonify(message="Selected folders and files received successfully!")
+
+
+        
 if __name__ == '__main__':
     app.run(debug=True)

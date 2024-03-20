@@ -11,56 +11,63 @@
         <input type="file" id="fileInput" multiple />
         <button type="submit">Upload</button>
     </form>
-    <h2>List of Folders:</h2>
-    <ul>
-       
-            {% for folder in folders %}
-                <li>{{ folder }}</li>
-            {% endfor %}
-			<br>
-       
-    </ul>
+    <h2>List of Folders:  {{ current_directory }}</h2>
+    <form id="folderListForm">
+        <ul>
+        {% if current_directory != '/' %}
+            <li><a href="{{ url_for('navigate_directory', dir=current_directory, target='..') }}">Go Back</a></li>
+        {% endif %}
+        {% for item in contents %}
+            <li>
+                {% if '.' not in item %}
+                    <input type="checkbox" name="folders" value="{{ item }}" />
+                    <a href="{{ url_for('navigate_directory', dir=current_directory, target=item) }}">{{ item }}</a>
+                {% else %}
+                    <input type="checkbox" name="files" value="{{ item }}" />
+                    {{ item }}
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+        <button type="button" onclick="uploadSelectedFolders()">Upload Selected</button>
+    </form>
 		
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function(){
-            $('#uploadForm').submit(function(e){
-                e.preventDefault();
-                var formData = new FormData();
-                var files = $('#folderInput')[0].files;
-                var individualFiles = $('#fileInput')[0].files;
-                var folderName = getFolderName(files); // Get folder name from selected folder
+            // Your existing JavaScript code here...
+        });
 
-                for(var i=0; i<files.length; i++){
-                    formData.append('files', files[i]);
-                }
-                for(var j=0; j<individualFiles.length; j++){
-                    formData.append('files', individualFiles[j]); // Append individual files to formData
-                }
-                // Append folderName to formData
-                formData.append('folderName', folderName);
+        function uploadSelectedFolders() {
+            var selectedFolders = [];
+            var selectedFiles = [];
 
-                $.ajax({
-                    url: '/upload_folder',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function(response){
-                        alert('Folder and Files uploaded successfully!');
-                    }
-                });
+            // Loop through all checkboxes with name "folders" and check if they are checked
+            $("input[name='folders']:checked").each(function () {
+                selectedFolders.push($(this).val()); // Push the value (folder name) to the array
             });
 
-            function getFolderName(files) {
-                if (files.length === 0) return ""; // Return empty string if no files are selected
-                var firstFile = files[0];
-                var path = firstFile.webkitRelativePath || firstFile.mozFullPath || firstFile.name;
-                // Extract folder name from the file path
-                var folderName = path.split("/")[0];
-                return folderName;
-            }
-        });
+            // Loop through all checkboxes with name "files" and check if they are checked
+            $("input[name='files']:checked").each(function () {
+                selectedFiles.push($(this).val()); // Push the value (file name) to the array
+            });
+
+            // Here, you can handle the selected folders and files as needed
+            console.log("Selected folders:", selectedFolders);
+            console.log("Selected files:", selectedFiles);
+
+            // Example AJAX request to send selected folders and files to server
+            $.ajax({
+                url: '/upload_selected_folders',
+                type: 'POST',
+                data: JSON.stringify({ folders: selectedFolders, files: selectedFiles }), // Convert to JSON string
+                contentType: 'application/json', // Set content type to JSON
+                success: function(data) {
+                    console.log(data);
+                    alert("Selected folders and files uploaded successfully!");
+                }
+            });
+        }
     </script>
 </body>
 </html>
